@@ -1,7 +1,6 @@
 import { ChangeDetectorRef, Injectable, OnDestroy, Optional, Pipe, PipeTransform } from '@angular/core';
-import { isObservable, Subscription } from 'rxjs';
-import { TranslateParser, TranslateService, TranslationChangeEvent } from '@ngx-translate/core';
-import { LangChangeEvent } from '@ngx-translate/core/lib/translate.service';
+import { Observable, Subscription } from 'rxjs';
+import { StrictTranslation, TranslateParser, TranslateService, TranslationChangeEvent } from '@ngx-translate/core';
 import { equals, exchangeParam, isDefined } from './util';
 import { TranslatePrefixDirective } from './translate-prefix.directive';
 import { getTranslateKey } from './translate-key';
@@ -13,10 +12,10 @@ import { getTranslateKey } from './translate-key';
   pure: false, // required to update the value when the promise is resolved
 })
 export class TranslatePipe implements PipeTransform, OnDestroy {
-  value: string = '';
-  lastKey: string | Object | null = null;
-  lastParams?: Object | string;
-  lastDefaults?: Object | string;
+  value: StrictTranslation = '';
+  lastKey: string | Record<string, string> | null = null;
+  lastParams?: Record<string, unknown> | string;
+  lastDefaults?: Record<string, string> | string;
   onTranslationChange: Subscription | undefined;
   onLangChange: Subscription | undefined;
   onDefaultLangChange: Subscription | undefined;
@@ -24,15 +23,19 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
 
   constructor(
     private translate: TranslateService,
-    @Optional() private translatePrefixDirective: TranslatePrefixDirective,
     private parser: TranslateParser,
     private _ref: ChangeDetectorRef,
+    @Optional() private translatePrefixDirective?: TranslatePrefixDirective,
   ) {}
 
-  updateValue(key: string | Object, defaults?: Object | string, interpolateParams?: Object, translations?: any): void {
+  updateValue(
+    key: string | Record<string, string>,
+    defaults?: Record<string, string> | string,
+    interpolateParams?: Record<string, unknown>,
+  ): void {
     const translateKey = typeof key === 'string' ? getTranslateKey(key, this.translatePrefixDirective?.ngaTranslatePrefix()) : '';
 
-    let onTranslation = (res: string) => {
+    const onTranslation = (res?: StrictTranslation): void => {
       const value = res ?? translateKey;
 
       if (value === translateKey) {
@@ -44,12 +47,15 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
       this.lastKey = key as string;
       this._ref.markForCheck();
     };
-    if (translations && typeof key === 'string') {
-      let res = this.translate.getParsedResult(translations, translateKey, interpolateParams);
-      if (isObservable(res.subscribe)) {
-        res.subscribe(onTranslation);
-      } else {
-        onTranslation(res);
+
+    if (typeof key === 'string') {
+      const res = this.translate.getParsedResult(translateKey, interpolateParams);
+      if (res) {
+        if (res instanceof Observable) {
+          res.subscribe(onTranslation);
+        } else {
+          onTranslation(res);
+        }
       }
     }
 
@@ -60,30 +66,15 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     }
   }
 
-  private applyDefault(defaults: Object | string | undefined, interpolateParams: Object | undefined, value: string) {
-    if (typeof defaults === 'string' && defaults.length) {
-      const validArgs: string = defaults.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
-      try {
-        defaults = JSON.parse(validArgs);
-        const default1 = exchangeParam((defaults as any)[this.translate.currentLang]);
-        this.value = this.parser.interpolate(default1, interpolateParams) ?? '';
-      } catch (e) {
-        const defaults1 = exchangeParam(defaults as string);
-        this.value = this.parser.interpolate(defaults1, interpolateParams) ?? '';
-      }
-    } else if (defaults && this.translate.currentLang in (defaults as Object)) {
-      const default1 = exchangeParam((defaults as any)[this.translate.currentLang]);
-      this.value = this.parser.interpolate(default1, interpolateParams) ?? '';
-    } else {
-      this.value = value;
-    }
-  }
+  transform(query: string, defaults?: Record<string, string> | string, params?: Record<string, unknown> | string): any;
 
-  transform(query: string, defaults?: Object | string, params?: Object | string): any;
-  transform(defaults: Object, params?: Object | string): any;
-
-  transform(query: string | Object, defaults?: Object | string, params?: Object | string): any {
-    if (typeof query === 'string' && !query?.length) {
+  transform(defaults: Record<string, string>, params?: Record<string, unknown> | string): any;
+  transform(
+    query: string | Record<string, string>,
+    defaults?: Record<string, string> | string,
+    params?: Record<string, unknown> | string,
+  ): any {
+    if (typeof query === 'string' && !query.length) {
       return query;
     }
 
@@ -96,13 +87,13 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
       params = defaults;
     }
 
-    let interpolateParams: Object | undefined = undefined;
+    let interpolateParams: Record<string, unknown> | undefined = undefined;
 
     if (isDefined(params)) {
       if (typeof params === 'string' && params.length) {
         // we accept objects written in the template such as {n:1}, {'n':1}, {n:'v'}
         // which is why we might need to change it to real JSON objects such as {"n":1} or {"n":"v"}
-        let validArgs: string = params.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
+        const validArgs: string = params.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
         try {
           interpolateParams = JSON.parse(validArgs);
         } catch (e) {
@@ -133,17 +124,17 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
       this.onTranslationChange = this.translate.onTranslationChange.subscribe((event: TranslationChangeEvent) => {
         if (this.lastKey && event.lang === this.translate.currentLang) {
           this.lastKey = null;
-          this.updateValue(query, defaults, interpolateParams, event.translations);
+          this.updateValue(query, defaults, interpolateParams);
         }
       });
     }
 
     // subscribe to onLangChange event, in case the language changes
     if (!this.onLangChange) {
-      this.onLangChange = this.translate.onLangChange.subscribe((event: LangChangeEvent) => {
+      this.onLangChange = this.translate.onLangChange.subscribe(() => {
         if (this.lastKey) {
           this.lastKey = null; // we want to make sure it doesn't return the same value until it's been updated
-          this.updateValue(query, defaults, interpolateParams, event.translations);
+          this.updateValue(query, defaults, interpolateParams);
         }
       });
     }
@@ -171,6 +162,33 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     return this.value;
   }
 
+  ngOnDestroy(): void {
+    this._dispose();
+  }
+
+  private applyDefault(
+    defaults: Record<string, unknown> | string | undefined,
+    interpolateParams: Record<string, unknown> | undefined,
+    value: string,
+  ): void {
+    if (typeof defaults === 'string' && defaults.length) {
+      const validArgs: string = defaults.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
+      try {
+        defaults = JSON.parse(validArgs);
+        const default1 = exchangeParam((defaults as any)[this.translate.getCurrentLang()]);
+        this.value = this.parser.interpolate(default1, interpolateParams) ?? '';
+      } catch (e) {
+        const defaults1 = exchangeParam(defaults as string);
+        this.value = this.parser.interpolate(defaults1, interpolateParams) ?? '';
+      }
+    } else if (defaults && this.translate.getCurrentLang() in (defaults as Record<string, string>)) {
+      const default1 = exchangeParam((defaults as any)[this.translate.getCurrentLang()]);
+      this.value = this.parser.interpolate(default1, interpolateParams) ?? '';
+    } else {
+      this.value = value;
+    }
+  }
+
   /**
    * Clean any existing subscription to change events
    */
@@ -191,9 +209,5 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
       this.onPrefixChange.unsubscribe();
       this.onPrefixChange = undefined;
     }
-  }
-
-  ngOnDestroy(): void {
-    this._dispose();
   }
 }

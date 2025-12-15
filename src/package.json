@@ -1,6 +1,6 @@
 {
   "name": "nga-translate",
-  "version": "17.1.2",
+  "version": "19.0.0",
   "author": "Sajad Mehrabi",
   "description": "Angular ngx-translate wrapper for support default translate and prefixed translations",
   "license": "MIT",
@@ -24,10 +24,10 @@
     "url": "https://github.com/mehrabisajad/nga-translate/issues"
   },
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "^2.8.1"
   },
   "peerDependencies": {
     "@angular/core": "^17.0.0 || ^18.0.0 || ^19.0.0 || ^20.0.0",
-    "@ngx-translate/core": "^14.0.0"
+    "@ngx-translate/core": "^17.0.0"
   }
 }

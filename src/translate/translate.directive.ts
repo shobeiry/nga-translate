@@ -15,13 +15,13 @@ import { getTranslateKey } from './translate-key';
 })
 export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
   ngaTranslate = input.required<string>();
-  translateValues = input<{ [key: string]: unknown } | string>();
+  translateValues = input<Record<string, unknown>>();
   translatePrefix = inject(TranslatePrefixDirective, { optional: true });
   translateService = inject(TranslateService);
   translateParser = inject(TranslateParser);
   el = inject(ElementRef);
 
-  defaults?: string | null;
+  defaults?: Record<string, string> | string | null;
 
   onPrefixChange: Subscription | undefined;
   onTranslationChange: Subscription | undefined;
@@ -34,12 +34,16 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
   ngOnInit(): void {
     this.onTranslationChange = this.translateService.onTranslationChange.subscribe(() => this.getTranslation());
     this.onLangChange = this.translateService.onLangChange.subscribe(() => this.getTranslation());
-    this.onDefaultLangChange = this.translateService.onDefaultLangChange.subscribe(() => this.getTranslation());
+    this.onDefaultLangChange = this.translateService.onFallbackLangChange.subscribe(() => this.getTranslation());
     this.onPrefixChange = this.translatePrefix?.onPrefixChange.subscribe(() => this.getTranslation());
   }
 
   ngOnChanges(): void {
     this.getTranslation();
+  }
+
+  ngOnDestroy(): void {
+    this._dispose();
   }
 
   private getTranslation(): void {
@@ -50,8 +54,8 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
     const translateKey = getTranslateKey(this.ngaTranslate(), this.translatePrefix?.ngaTranslatePrefix());
     const translateValues = this.translateValues();
 
-    if (!this.ngaTranslate) {
-      this.applyDefault(this.ngaTranslate);
+    if (!(this.ngaTranslate as any)) {
+      this.applyDefault(this.ngaTranslate());
       return;
     }
 
@@ -74,14 +78,14 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
       const validArgs: string = this.defaults.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
       try {
         const objectDefaults = JSON.parse(validArgs);
-        const default1 = exchangeParam(objectDefaults[this.translateService.currentLang]);
+        const default1 = exchangeParam(objectDefaults[this.translateService.getCurrentLang()]);
         this.el.nativeElement.innerHTML = this.translateParser.interpolate(default1, this.translateValues) ?? '';
       } catch (e) {
         const defaults1 = exchangeParam(this.defaults);
         this.el.nativeElement.innerHTML = this.translateParser.interpolate(defaults1, this.translateValues);
       }
-    } else if (this.defaults && this.translateService.currentLang in (this.defaults as Object)) {
-      const default1 = exchangeParam((this.defaults as any)[this.translateService.currentLang]);
+    } else if (this.defaults && this.translateService.getCurrentLang() in (this.defaults as Record<string, string>)) {
+      const default1 = exchangeParam((this.defaults as any)[this.translateService.getCurrentLang()]);
       this.el.nativeElement.innerHTML = this.translateParser.interpolate(default1, this.translateValues) ?? '';
     } else {
       this.el.nativeElement.innerHTML = value;
@@ -114,9 +118,5 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
       }
     }
     this.onTranslationGets = [];
-  }
-
-  ngOnDestroy(): void {
-    this._dispose();
   }
 }
