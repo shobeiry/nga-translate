@@ -67,7 +67,7 @@ export function isDefined(value: any): boolean {
 }
 
 export function isObject(item: any): boolean {
-  return !!(item && typeof item === 'object' && !Array.isArray(item));
+  return !!item && typeof item === 'object' && !Array.isArray(item);
 }
 
 export function mergeDeep(target: any, source: any): any {
