@@ -1,9 +1,12 @@
 import { ChangeDetectorRef, Injectable, OnDestroy, Optional, Pipe, PipeTransform } from '@angular/core';
-import { Observable, Subscription } from 'rxjs';
-import { StrictTranslation, TranslateParser, TranslateService, TranslationChangeEvent } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
+import { InterpolationParameters, StrictTranslation, TranslateParser, TranslateService, TranslationChangeEvent } from '@ngx-translate/core';
 import { equals, exchangeParam, isDefined } from './util';
 import { TranslatePrefixDirective } from './translate-prefix.directive';
 import { getTranslateKey } from './translate-key';
+
+type KeyType = Record<string, string> | string;
+type DefaultType = Record<string, string> | string;
 
 @Injectable({ providedIn: 'root' })
 @Pipe({
@@ -12,68 +15,42 @@ import { getTranslateKey } from './translate-key';
   pure: false, // required to update the value when the promise is resolved
 })
 export class TranslatePipe implements PipeTransform, OnDestroy {
-  value: StrictTranslation = '';
-  lastKey: string | Record<string, string> | null = null;
-  lastParams?: Record<string, unknown> | string;
-  lastDefaults?: Record<string, string> | string;
-  onTranslationChange: Subscription | undefined;
-  onLangChange: Subscription | undefined;
-  onDefaultLangChange: Subscription | undefined;
-  onPrefixChange: Subscription | undefined;
+  private value: StrictTranslation = '';
+  private lastKey: KeyType | null = null;
+  private lastParams?: InterpolationParameters;
+  private lastDefaults?: DefaultType;
+  private readonly subs: Record<PropertyKey, Subscription> = {};
 
   constructor(
     private translate: TranslateService,
     private parser: TranslateParser,
-    private _ref: ChangeDetectorRef,
+    private cdr: ChangeDetectorRef,
     @Optional() private translatePrefixDirective?: TranslatePrefixDirective,
   ) {}
 
-  updateValue(
-    key: string | Record<string, string>,
-    defaults?: Record<string, string> | string,
-    interpolateParams?: Record<string, unknown>,
-  ): void {
+  updateValue(key: KeyType, defaults?: DefaultType, interpolateParams?: InterpolationParameters): void {
     const translateKey = typeof key === 'string' ? getTranslateKey(key, this.translatePrefixDirective?.ngaTranslatePrefix()) : '';
-
-    const onTranslation = (res?: StrictTranslation): void => {
-      const value = res ?? translateKey;
-
-      if (value === translateKey) {
-        this.applyDefault(defaults, interpolateParams, value);
-      } else {
-        this.value = value;
-      }
-
-      this.lastKey = key as string;
-      this._ref.markForCheck();
-    };
-
     if (typeof key === 'string') {
-      const res = this.translate.getParsedResult(translateKey, interpolateParams);
-      if (res) {
-        if (res instanceof Observable) {
-          res.subscribe(onTranslation);
+      this.subs['onTranslation'] = this.translate.stream(translateKey, interpolateParams).subscribe((res?: StrictTranslation): void => {
+        const value = res ?? translateKey;
+
+        if (value === translateKey) {
+          this.applyDefault(defaults, interpolateParams, value);
         } else {
-          onTranslation(res);
+          this.value = value;
         }
-      }
-    }
 
-    if (typeof key === 'string') {
-      this.translate.get(translateKey, interpolateParams).subscribe(onTranslation);
+        this.lastKey = key;
+        this.cdr.markForCheck();
+      });
     } else {
       this.applyDefault(key, interpolateParams, JSON.stringify(key));
     }
   }
 
-  transform(query: string, defaults?: Record<string, string> | string, params?: Record<string, unknown> | string): any;
-
-  transform(defaults: Record<string, string>, params?: Record<string, unknown> | string): any;
-  transform(
-    query: string | Record<string, string>,
-    defaults?: Record<string, string> | string,
-    params?: Record<string, unknown> | string,
-  ): any {
+  transform(query: string, defaults?: DefaultType | string, params?: InterpolationParameters | string): any;
+  transform(defaults: DefaultType, params?: InterpolationParameters | string): any;
+  transform(query: string | DefaultType, defaults?: DefaultType | string, params?: InterpolationParameters | string): any {
     if (typeof query === 'string' && !query.length) {
       return query;
     }
@@ -83,11 +60,11 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
       return this.value;
     }
 
-    if (typeof query === 'object') {
+    if (typeof query !== 'string') {
       params = defaults;
     }
 
-    let interpolateParams: Record<string, unknown> | undefined = undefined;
+    let interpolateParams: InterpolationParameters | undefined = undefined;
 
     if (isDefined(params)) {
       if (typeof params === 'string' && params.length) {
@@ -108,40 +85,30 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     this.lastKey = query;
 
     // store the params, in case they change
-    this.lastParams = params;
+    this.lastParams = { ...interpolateParams };
 
     // store the defaults, in case they change
     this.lastDefaults = defaults;
 
-    // set the value
-    this.updateValue(query, defaults, interpolateParams);
-
     // if there is a subscription to onLangChange, clean it
     this._dispose();
 
+    // set the value
+    this.updateValue(query, defaults, interpolateParams);
+
     // subscribe to onTranslationChange event, in case the translations change
-    if (!this.onTranslationChange) {
-      this.onTranslationChange = this.translate.onTranslationChange.subscribe((event: TranslationChangeEvent) => {
-        if (this.lastKey && event.lang === this.translate.currentLang) {
+    if (!('onTranslationChange' in this.subs)) {
+      this.subs['onTranslationChange'] = this.translate.onTranslationChange.subscribe((event: TranslationChangeEvent) => {
+        if (this.lastKey && event.lang === this.translate.getCurrentLang()) {
           this.lastKey = null;
           this.updateValue(query, defaults, interpolateParams);
         }
       });
     }
 
-    // subscribe to onLangChange event, in case the language changes
-    if (!this.onLangChange) {
-      this.onLangChange = this.translate.onLangChange.subscribe(() => {
-        if (this.lastKey) {
-          this.lastKey = null; // we want to make sure it doesn't return the same value until it's been updated
-          this.updateValue(query, defaults, interpolateParams);
-        }
-      });
-    }
-
     // subscribe to onDefaultLangChange event, in case the default language changes
-    if (!this.onDefaultLangChange) {
-      this.onDefaultLangChange = this.translate.onDefaultLangChange.subscribe(() => {
+    if (!('onDefaultLangChange' in this.subs)) {
+      this.subs['onDefaultLangChange'] = this.translate.onFallbackLangChange.subscribe(() => {
         if (this.lastKey) {
           this.lastKey = null; // we want to make sure it doesn't return the same value until it's been updated
           this.updateValue(query, defaults, interpolateParams);
@@ -150,8 +117,8 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     }
 
     // subscribe to onPrefixChange event, in case the default language changes
-    if (!this.onPrefixChange) {
-      this.onPrefixChange = this.translatePrefixDirective?.onPrefixChange.subscribe(() => {
+    if (!('onPrefixChange' in this.subs) && this.translatePrefixDirective) {
+      this.subs['onPrefixChange'] = this.translatePrefixDirective.onPrefixChange.subscribe(() => {
         if (this.lastKey) {
           this.lastKey = null;
           this.updateValue(query, defaults, interpolateParams);
@@ -166,11 +133,7 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     this._dispose();
   }
 
-  private applyDefault(
-    defaults: Record<string, unknown> | string | undefined,
-    interpolateParams: Record<string, unknown> | undefined,
-    value: string,
-  ): void {
+  private applyDefault(defaults: DefaultType | undefined, interpolateParams: InterpolationParameters | undefined, value: string): void {
     if (typeof defaults === 'string' && defaults.length) {
       const validArgs: string = defaults.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
       try {
@@ -192,22 +155,13 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
   /**
    * Clean any existing subscription to change events
    */
-  private _dispose(): void {
-    if (typeof this.onTranslationChange !== 'undefined') {
-      this.onTranslationChange.unsubscribe();
-      this.onTranslationChange = undefined;
-    }
-    if (typeof this.onLangChange !== 'undefined') {
-      this.onLangChange.unsubscribe();
-      this.onLangChange = undefined;
-    }
-    if (typeof this.onDefaultLangChange !== 'undefined') {
-      this.onDefaultLangChange.unsubscribe();
-      this.onDefaultLangChange = undefined;
-    }
-    if (typeof this.onPrefixChange !== 'undefined') {
-      this.onPrefixChange.unsubscribe();
-      this.onPrefixChange = undefined;
+  private _dispose(keys?: string[]): void {
+    const entries = keys?.length ? keys : Object.keys(this.subs);
+    for (const k of entries) {
+      if (k in this.subs) {
+        this.subs[k].unsubscribe();
+        delete this.subs[k];
+      }
     }
   }
 }

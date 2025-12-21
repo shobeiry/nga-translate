@@ -1,5 +1,5 @@
 import { Directive, ElementRef, inject, input, OnChanges, OnDestroy, OnInit } from '@angular/core';
-import { TranslateParser, TranslateService } from '@ngx-translate/core';
+import { InterpolationParameters, TranslateParser, TranslateService } from '@ngx-translate/core';
 
 import { exchangeParam } from './util';
 import { Subscription } from 'rxjs';
@@ -14,8 +14,8 @@ import { getTranslateKey } from './translate-key';
   selector: '[ngaTranslate]',
 })
 export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
-  ngaTranslate = input.required<string>();
-  translateValues = input<Record<string, unknown>>();
+  ngaTranslate = input<string>();
+  translateValues = input<InterpolationParameters>();
   translatePrefix = inject(TranslatePrefixDirective, { optional: true });
   translateService = inject(TranslateService);
   translateParser = inject(TranslateParser);
@@ -50,14 +50,14 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
     if (!this.defaults) {
       this.defaults = this.el.nativeElement.innerHTML;
     }
-
-    const translateKey = getTranslateKey(this.ngaTranslate(), this.translatePrefix?.ngaTranslatePrefix());
-    const translateValues = this.translateValues();
-
-    if (!(this.ngaTranslate as any)) {
-      this.applyDefault(this.ngaTranslate());
+    const key = this.ngaTranslate();
+    if (!key) {
+      this.applyDefault(key);
       return;
     }
+
+    const translateKey = getTranslateKey(key, this.translatePrefix?.ngaTranslatePrefix());
+    const translateValues = this.translateValues();
 
     const onGet = this.translateService.get(translateKey, translateValues).subscribe({
       next: (value: string) => {
@@ -73,7 +73,7 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
     this.onTranslationGets.push(onGet);
   }
 
-  private applyDefault(value: string): void {
+  private applyDefault(value?: string): void {
     if (typeof this.defaults === 'string' && this.defaults.length) {
       const validArgs: string = this.defaults.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
       try {
