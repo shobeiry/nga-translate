@@ -1,4 +1,7 @@
 /* tslint:disable */
+import { InterpolationParameters, TranslateParser } from '@ngx-translate/core';
+import { DefaultValue } from './translate.types';
+
 /**
  * Determines if two objects or two values are equivalent.
  *
@@ -66,7 +69,7 @@ export function isDefined(value: any): boolean {
   return typeof value !== 'undefined' && value !== null;
 }
 
-export function isObject(item: any): boolean {
+export function isObject(item: any): item is Record<any, any> {
   return !!item && typeof item === 'object' && !Array.isArray(item);
 }
 
@@ -90,4 +93,32 @@ export function mergeDeep(target: any, source: any): any {
 
 export function exchangeParam(value?: string): string {
   return value?.replace('[{', '{{').replace('}]', '}}') ?? '';
+}
+
+export function normalizeJson(json: string): string {
+  return json.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
+}
+
+export function getDefault(
+  parser: TranslateParser,
+  lang: string,
+  defaults: DefaultValue | undefined,
+  interpolateParams: InterpolationParameters | undefined,
+  value: string,
+): string {
+  if (typeof defaults === 'string' && defaults.length) {
+    try {
+      defaults = JSON.parse(normalizeJson(defaults));
+      const default1 = exchangeParam(isObject(defaults) ? defaults[lang] : defaults);
+      return parser.interpolate(default1, interpolateParams) ?? '';
+    } catch {
+      const defaults1 = exchangeParam(defaults as string);
+      return parser.interpolate(defaults1, interpolateParams) ?? '';
+    }
+  } else if (defaults && lang in (defaults as object)) {
+    const default1 = exchangeParam((defaults as any)[lang]);
+    return parser.interpolate(default1, interpolateParams) ?? '';
+  } else {
+    return value;
+  }
 }

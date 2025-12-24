@@ -1,13 +1,14 @@
 import { Directive, ElementRef, inject, input, OnChanges, OnDestroy, OnInit } from '@angular/core';
 import { InterpolationParameters, TranslateParser, TranslateService } from '@ngx-translate/core';
 
-import { exchangeParam } from './util';
+import { getDefault } from './util';
 import { Subscription } from 'rxjs';
 import { TranslatePrefixDirective } from './translate-prefix.directive';
 import { getTranslateKey } from './translate-key';
+import { DefaultValue } from './translate.types';
 
 /**
- * A wrapper directive on top of the translate pipe as the inbuilt translate directive from ngx-translate is too verbose and buggy
+ * A wrapper directive on top of the translation pipe as the inbuilt translation directive from ngx-translate is too verbose and buggy
  */
 @Directive({
   standalone: true,
@@ -21,7 +22,7 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
   translateParser = inject(TranslateParser);
   el = inject(ElementRef);
 
-  defaults?: Record<string, string> | string | null;
+  defaults?: DefaultValue | null;
 
   onPrefixChange: Subscription | undefined;
   onTranslationChange: Subscription | undefined;
@@ -52,7 +53,7 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
     }
     const key = this.ngaTranslate();
     if (!key) {
-      this.applyDefault(key);
+      this.applyDefault('');
       return;
     }
 
@@ -73,49 +74,30 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
     this.onTranslationGets.push(onGet);
   }
 
-  private applyDefault(value?: string): void {
-    if (typeof this.defaults === 'string' && this.defaults.length) {
-      const validArgs: string = this.defaults.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
-      try {
-        const objectDefaults = JSON.parse(validArgs);
-        const default1 = exchangeParam(objectDefaults[this.translateService.getCurrentLang()]);
-        this.el.nativeElement.innerHTML = this.translateParser.interpolate(default1, this.translateValues()) ?? '';
-      } catch (e) {
-        const defaults1 = exchangeParam(this.defaults);
-        this.el.nativeElement.innerHTML = this.translateParser.interpolate(defaults1, this.translateValues());
-      }
-    } else if (this.defaults && this.translateService.getCurrentLang() in (this.defaults as Record<string, string>)) {
-      const default1 = exchangeParam((this.defaults as any)[this.translateService.getCurrentLang()]);
-      this.el.nativeElement.innerHTML = this.translateParser.interpolate(default1, this.translateValues()) ?? '';
-    } else {
-      this.el.nativeElement.innerHTML = value;
-    }
+  private applyDefault(value: string): void {
+    this.el.nativeElement.innerHTML = getDefault(
+      this.translateParser,
+      this.translateService.getCurrentLang(),
+      this.defaults ?? undefined,
+      this.translateValues(),
+      value,
+    );
   }
 
   /**
    * Clean any existing subscription to change events
    */
   private _dispose(): void {
-    if (typeof this.onPrefixChange !== 'undefined') {
-      this.onPrefixChange.unsubscribe();
-      this.onPrefixChange = undefined;
-    }
-    if (typeof this.onTranslationChange !== 'undefined') {
-      this.onTranslationChange.unsubscribe();
-      this.onTranslationChange = undefined;
-    }
-    if (typeof this.onLangChange !== 'undefined') {
-      this.onLangChange.unsubscribe();
-      this.onLangChange = undefined;
-    }
-    if (typeof this.onDefaultLangChange !== 'undefined') {
-      this.onDefaultLangChange.unsubscribe();
-      this.onDefaultLangChange = undefined;
-    }
+    this.onPrefixChange?.unsubscribe();
+    this.onPrefixChange = undefined;
+    this.onTranslationChange?.unsubscribe();
+    this.onTranslationChange = undefined;
+    this.onLangChange?.unsubscribe();
+    this.onLangChange = undefined;
+    this.onDefaultLangChange?.unsubscribe();
+    this.onDefaultLangChange = undefined;
     for (const onTranslationGet of this.onTranslationGets) {
-      if (typeof onTranslationGet !== 'undefined') {
-        onTranslationGet.unsubscribe();
-      }
+      onTranslationGet.unsubscribe();
     }
     this.onTranslationGets = [];
   }
