@@ -1,6 +1,6 @@
 /* tslint:disable */
 import { InterpolationParameters, TranslateParser } from '@ngx-translate/core';
-import { DefaultValue } from './translate.types';
+import { DefaultObject, DefaultValue } from './translate.types';
 
 /**
  * Determines if two objects or two values are equivalent.
@@ -107,17 +107,27 @@ export function getDefault(
   value: string,
 ): string {
   if (typeof defaults === 'string' && defaults.length) {
+    let _default: string;
     try {
       defaults = JSON.parse(normalizeJson(defaults));
-      const default1 = exchangeParam(isObject(defaults) ? defaults[lang] : defaults);
-      return parser.interpolate(default1, interpolateParams) ?? '';
+      if (isObject(defaults)) {
+        return getDefault(parser, lang, defaults, interpolateParams, value);
+      } else {
+        _default = defaults ?? '';
+      }
     } catch {
-      const defaults1 = exchangeParam(defaults as string);
-      return parser.interpolate(defaults1, interpolateParams) ?? '';
+      _default = defaults as string;
     }
-  } else if (defaults && lang in (defaults as object)) {
-    const default1 = exchangeParam((defaults as any)[lang]);
-    return parser.interpolate(default1, interpolateParams) ?? '';
+    return parser.interpolate(exchangeParam(_default), interpolateParams) ?? '';
+  } else if (defaults) {
+    let _default: string;
+    const _defaults = defaults as DefaultObject;
+    if (lang in _defaults) {
+      _default = _defaults[lang];
+    } else {
+      _default = Object.values(_defaults)[0];
+    }
+    return parser.interpolate(exchangeParam(_default), interpolateParams) ?? '';
   } else {
     return value;
   }
