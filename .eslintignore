@@ -7,3 +7,4 @@ build/
 node/
 dist/
 postcss.config.js
+src/karma.conf.js

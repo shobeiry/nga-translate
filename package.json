@@ -44,6 +44,9 @@
     "@angular/cli": "^19.2.19",
     "@angular/compiler": "^19.2.17",
     "@angular/compiler-cli": "^19.2.17",
+    "@angular/common": "^19.2.17",
+    "@angular/platform-browser": "^19.2.17",
+    "@angular/platform-browser-dynamic": "^19.2.17",
     "@types/jasmine": "^5.1.2",
     "@types/node": "^25.0.2",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
@@ -52,10 +55,16 @@
     "eslint-config-prettier": "^9.1.0",
     "husky": "^9.0.11",
     "jasmine-core": "^5.1.2",
+    "karma": "^6.4.3",
+    "karma-chrome-launcher": "^3.2.0",
+    "karma-coverage": "^2.2.1",
+    "karma-jasmine": "^5.1.0",
+    "karma-jasmine-html-reporter": "^2.1.0",
     "lint-staged": "^15.2.7",
     "ng-packagr": "^19.2.2",
     "prettier": "^3.3.2",
     "prettier-plugin-packagejson": "^2.5.0",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "zone.js": "^0.15.0"
   }
 }

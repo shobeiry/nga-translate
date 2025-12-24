@@ -19,6 +19,7 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
   lastDefaults?: DefaultValue;
   onTranslation: Subscription | undefined;
   onTranslationChange: Subscription | undefined;
+  onLangChange: Subscription | undefined;
   onDefaultLangChange: Subscription | undefined;
   onPrefixChange: Subscription | undefined;
 
@@ -47,7 +48,7 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
 
     if (typeof key === 'string') {
       this.onTranslation?.unsubscribe();
-      this.onTranslation = this.translate.stream(translateKey, interpolateParams).subscribe(onTranslation);
+      this.onTranslation = this.translate.get(translateKey, interpolateParams).subscribe(onTranslation);
     } else {
       this.applyDefault(key, interpolateParams, JSON.stringify(key));
     }
@@ -110,6 +111,15 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
       });
     }
 
+    if (!this.onLangChange) {
+      this.onLangChange = this.translate.onLangChange.subscribe(() => {
+        if (this.lastKey) {
+          this.lastKey = null;
+          this.updateValue(query, defaults, interpolateParams);
+        }
+      });
+    }
+
     // subscribe to onDefaultLangChange event, in case the default language changes
     if (!this.onDefaultLangChange) {
       this.onDefaultLangChange = this.translate.onFallbackLangChange.subscribe(() => {
@@ -151,6 +161,8 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     this.onTranslation = undefined;
     this.onDefaultLangChange?.unsubscribe();
     this.onDefaultLangChange = undefined;
+    this.onLangChange?.unsubscribe();
+    this.onLangChange = undefined;
     this.onPrefixChange?.unsubscribe();
     this.onPrefixChange = undefined;
   }
