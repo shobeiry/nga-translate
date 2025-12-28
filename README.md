@@ -12,12 +12,40 @@ It is a wrapper for the popular **ngx-translate** library and adds useful featur
 
 ---
 
+## Compatibility
+
+- Angular: 17–20
+- ngx-translate: 17.x
+
+---
+
 ## Installation
 
 To install ngaTranslate, run the following command in your terminal:
 
 ```bash
 npm install nga-translate --save
+```
+
+---
+
+## Getting Started
+
+Make sure ngx-translate is [configured](https://ngx-translate.org/reference/configuration/) in your app (examples below are minimal).
+
+```ts
+import { provideTranslateService } from '@ngx-translate/core';
+import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideTranslateService({
+      loader: provideTranslateHttpLoader({ prefix: '/i18n/' }),
+      fallbackLang: 'en',
+      lang: 'fa',
+    }),
+  ],
+};
 ```
 
 ---
@@ -33,11 +61,20 @@ It accepts up to three arguments:
 - **Default translation** (string or object, used if key is not found)
 - **Params** (object, for dynamic values)
 
+If the default translation is an object and it does not contain the current language, the first available value will be used.
+
+Supported signatures:
+
+- `{{ 'key' | ngaTranslate }}`
+- `{{ 'key' | ngaTranslate : 'default' }}`
+- `{{ 'key' | ngaTranslate : { en: 'Hello', fa: 'سلام' } }}`
+- `{{ { en: 'default' } | ngaTranslate }}`
+
 #### Examples
 
 ```html
-{{ 'key' | ngaTranslate }} {{ 'key' | ngaTranslate : 'default translate' }} {{ 'key' | ngaTranslate : 'default translate' : { p1: 'value' }
-}} {{ 'key' | ngaTranslate : 'default translate [{ p1 }]' : { p1: 'value' } }} {{ 'key' | ngaTranslate : { en: 'Hello [{ p1 }]', fr:
+{{ 'key' | ngaTranslate }} {{ 'key' | ngaTranslate : 'default translate' }} {{ 'key' | ngaTranslate : 'default translate' : { p1: 'value'
+}}} {{ 'key' | ngaTranslate : 'default translate [{ p1 }]' : { p1: 'value' } }} {{ 'key' | ngaTranslate : { en: 'Hello [{ p1 }]', fr:
 'Bonjour [{ p1 }]' } : { p1: 'value' } }}
 ```
 
@@ -48,12 +85,25 @@ You can also use the pipe with only default values (without an explicit key):
 'default [{ p1 }]', fr: 'par défaut [{ p1 }]' } | ngaTranslate : { p1: 'value' } }}
 ```
 
+You can pass params as a string in templates:
+
+```html
+{{ 'key' | ngaTranslate : 'default' : "{ p1: 'value' }" }}
+```
+
 ---
 
 ### 2. Directive
 
 The `ngaTranslate` directive can be used directly on elements.  
 It supports both a **translation key** and the element’s content (as default translation).
+
+If the default translation is an object and it does not contain the current language, the first available value will be used.
+
+Inputs:
+
+- `ngaTranslate`: translation key (optional)
+- `translateValues`: params object
 
 #### Examples
 
@@ -106,6 +156,16 @@ If the key starts with a dot (.), the prefix will be ignored, and the translatio
 
 We welcome contributions to ngaTranslate.  
 Feel free to open an issue or submit a pull request on GitHub.
+
+---
+
+## Testing
+
+Run the unit tests with:
+
+```bash
+npm test
+```
 
 ---
 

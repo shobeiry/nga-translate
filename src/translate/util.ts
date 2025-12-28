@@ -1,4 +1,7 @@
 /* tslint:disable */
+import { InterpolationParameters, TranslateParser } from '@ngx-translate/core';
+import { DefaultObject, DefaultValue } from './translate.types';
+
 /**
  * Determines if two objects or two values are equivalent.
  *
@@ -13,20 +16,28 @@
  * @returns true if arguments are equal.
  */
 export function equals(o1: any, o2: any): boolean {
-  if (o1 === o2) return true;
-  if (o1 === null || o2 === null) return false;
-  if (o1 !== o1 && o2 !== o2) return true; // NaN === NaN
-  let t1 = typeof o1,
-    t2 = typeof o2,
-    length: number,
-    key: any,
-    keySet: any;
-  if (t1 == t2 && t1 == 'object') {
+  if (o1 === o2) {
+    return true;
+  }
+  if (o1 === null || o2 === null) {
+    return false;
+  }
+  if (o1 !== o1 && o2 !== o2) {
+    return true; // NaN === NaN
+  }
+  const t1 = typeof o1,
+    t2 = typeof o2;
+  let length: number, key: any, keySet: any;
+  if (t1 === t2 && t1 === 'object') {
     if (Array.isArray(o1)) {
-      if (!Array.isArray(o2)) return false;
-      if ((length = o1.length) == o2.length) {
+      if (!Array.isArray(o2)) {
+        return false;
+      }
+      if ((length = o1.length) === o2.length) {
         for (key = 0; key < length; key++) {
-          if (!equals(o1[key], o2[key])) return false;
+          if (!equals(o1[key], o2[key])) {
+            return false;
+          }
         }
         return true;
       }
@@ -35,7 +46,7 @@ export function equals(o1: any, o2: any): boolean {
         return false;
       }
       keySet = Object.create(null);
-      for (key in o1) {
+      for (key of Object.keys(o1)) {
         if (!equals(o1[key], o2[key])) {
           return false;
         }
@@ -58,12 +69,12 @@ export function isDefined(value: any): boolean {
   return typeof value !== 'undefined' && value !== null;
 }
 
-export function isObject(item: any): boolean {
-  return item && typeof item === 'object' && !Array.isArray(item);
+export function isObject(item: any): item is Record<any, any> {
+  return !!item && typeof item === 'object' && !Array.isArray(item);
 }
 
 export function mergeDeep(target: any, source: any): any {
-  let output = Object.assign({}, target);
+  const output = Object.assign({}, target);
   if (isObject(target) && isObject(source)) {
     Object.keys(source).forEach((key: any) => {
       if (isObject(source[key])) {
@@ -80,6 +91,44 @@ export function mergeDeep(target: any, source: any): any {
   return output;
 }
 
-export function exchangeParam(value: string): string {
-  return value?.replace('[{', '{{')?.replace('}]', '}}');
+export function exchangeParam(value?: string): string {
+  return value?.replace('[{', '{{').replace('}]', '}}') ?? '';
+}
+
+export function normalizeJson(json: string): string {
+  return json.replace(/(')?(\w+)(')?(\s)?:/g, '"$2":').replace(/:(\s)?(')(.*?)(')/g, ':"$3"');
+}
+
+export function getDefault(
+  parser: TranslateParser,
+  lang: string,
+  defaults: DefaultValue | undefined,
+  interpolateParams: InterpolationParameters | undefined,
+  value: string,
+): string {
+  if (typeof defaults === 'string' && defaults.length) {
+    let _default: string;
+    try {
+      defaults = JSON.parse(normalizeJson(defaults));
+      if (isObject(defaults)) {
+        return getDefault(parser, lang, defaults, interpolateParams, value);
+      } else {
+        _default = defaults ?? '';
+      }
+    } catch {
+      _default = defaults as string;
+    }
+    return parser.interpolate(exchangeParam(_default), interpolateParams) ?? '';
+  } else if (defaults) {
+    let _default: string;
+    const _defaults = defaults as DefaultObject;
+    if (lang in _defaults) {
+      _default = _defaults[lang];
+    } else {
+      _default = Object.values(_defaults)[0];
+    }
+    return parser.interpolate(exchangeParam(_default), interpolateParams) ?? '';
+  } else {
+    return value;
+  }
 }
