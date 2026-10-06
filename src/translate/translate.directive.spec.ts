@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
+import { provideTranslateLoader, provideTranslateService, TranslateLoader, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 
 import { TranslateDirective } from './translate.directive';
@@ -53,9 +53,9 @@ describe('TranslateDirective', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [
-        TranslateModule.forRoot({
-          loader: { provide: TranslateLoader, useValue: loader },
+      providers: [
+        provideTranslateService({
+          loader: provideTranslateLoader(() => loader),
         }),
       ],
     });

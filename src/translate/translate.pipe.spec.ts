@@ -1,6 +1,6 @@
-import { Component, signal, Type } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
+import { provideTranslateLoader, provideTranslateService, TranslateLoader, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TranslatePipe } from './translate.pipe';
 import { TranslatePrefixDirective } from './translate-prefix.directive';
@@ -78,9 +78,9 @@ describe('TranslatePipe', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [
-        TranslateModule.forRoot({
-          loader: { provide: TranslateLoader, useValue: loader },
+      providers: [
+        provideTranslateService({
+          loader: provideTranslateLoader(() => loader),
         }),
       ],
     });

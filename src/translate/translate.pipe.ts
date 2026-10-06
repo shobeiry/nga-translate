@@ -148,7 +148,7 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
   }
 
   private applyDefault(defaults: DefaultValue | undefined, interpolateParams: InterpolationParameters | undefined, value: string): void {
-    this.value = getDefault(this.parser, this.translate.getCurrentLang(), defaults, interpolateParams, value);
+    this.value = getDefault(this.parser, this.translate.getCurrentLang() ?? 'en', defaults, interpolateParams, value);
   }
 
   /**

@@ -77,7 +77,7 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
   private applyDefault(value: string): void {
     this.el.nativeElement.innerHTML = getDefault(
       this.translateParser,
-      this.translateService.getCurrentLang(),
+      this.translateService.getCurrentLang() ?? 'en',
       this.defaults ?? undefined,
       this.translateValues(),
       value,
