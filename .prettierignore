@@ -1,8 +1,12 @@
 node_modules
-target
-build
 package-lock.json
+dist
+.idea
 .git
-.mvn
-gradle
-.gradle
+.angular
+.vscode
+.codex
+.cursor
+.gemini
+.husky
+.graphify'

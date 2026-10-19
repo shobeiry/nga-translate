@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
+import { provideTranslateLoader, provideTranslateService, TranslateLoader, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 
 import { TranslateDirective } from './translate.directive';
@@ -12,21 +12,21 @@ class DefaultComponent {
 }
 
 @Component({
-  standalone: true,
+  selector: 'DirectiveDefaultComponent',
   imports: [TranslateDirective, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()"><p ngaTranslate>Hello, world!</p></div>`,
 })
 class DirectiveDefaultComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'DirectiveWithKeyComponent',
   imports: [TranslateDirective, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()"><p ngaTranslate="test">Hello, world!</p></div>`,
 })
 class DirectiveWithKeyComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'DirectiveWithKeyAndParamComponent',
   imports: [TranslateDirective, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">
     <p ngaTranslate="test" [translateValues]="{ p1: 'world' }">Hello, [&lcub; p1 &rcub;]!</p>
@@ -35,7 +35,7 @@ class DirectiveWithKeyComponent extends DefaultComponent {}
 class DirectiveWithKeyAndParamComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'DirectiveWithKeyAndObjectDefaultAndParamComponent',
   imports: [TranslateDirective, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">
     <p ngaTranslate="test" [translateValues]="{ p1: 'world' }">
@@ -53,9 +53,9 @@ describe('TranslateDirective', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [
-        TranslateModule.forRoot({
-          loader: { provide: TranslateLoader, useValue: loader },
+      providers: [
+        provideTranslateService({
+          loader: provideTranslateLoader(() => loader),
         }),
       ],
     });

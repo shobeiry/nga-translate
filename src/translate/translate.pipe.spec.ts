@@ -1,6 +1,6 @@
-import { Component, signal, Type } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
+import { provideTranslateLoader, provideTranslateService, TranslateLoader, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TranslatePipe } from './translate.pipe';
 import { TranslatePrefixDirective } from './translate-prefix.directive';
@@ -11,35 +11,35 @@ class DefaultComponent {
 }
 
 @Component({
-  standalone: true,
+  selector: 'ObjectKeyComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">{{ { fa: 'تست', en: 'Test' } | ngaTranslate }}</div>`,
 })
 class ObjectKeyComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'StringKeyComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">{{ 'test' | ngaTranslate }}</div>`,
 })
 class StringKeyComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'StringKeyAndStringDefaultComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">{{ 'test' | ngaTranslate: 'Default Value' }}</div>`,
 })
 class StringKeyAndStringDefaultComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'StringKeyAndStringDefaultAndParamsComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">{{ 'test' | ngaTranslate: 'Default Value [{ p1 }]' : { p1: 'Param 1' } }}</div>`,
 })
 class StringKeyAndStringDefaultAndParamsComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'StringKeyAndObjectDefaultAndParamsComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">
     {{ 'test' | ngaTranslate: { en: 'Hello [{ p1 }]', fa: 'سلام [{ p1 }]' } : { p1: 'Param 1' } }}
@@ -48,21 +48,21 @@ class StringKeyAndStringDefaultAndParamsComponent extends DefaultComponent {}
 class StringKeyAndObjectDefaultAndParamsComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'ObjectDefaultWithoutFaLangAndParamsComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">{{ { en: 'default translate' } | ngaTranslate }}</div>`,
 })
 class ObjectDefaultWithoutFaLangAndParamsComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'ObjectDefaultWithoutFaAndWithParamsComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">{{ { en: 'default translate [{ p1 }]' } | ngaTranslate: { p1: 'value' } }}</div>`,
 })
 class ObjectDefaultWithoutFaAndWithParamsComponent extends DefaultComponent {}
 
 @Component({
-  standalone: true,
+  selector: 'ObjectDefaultWithParamsComponent',
   imports: [TranslatePipe, TranslatePrefixDirective],
   template: `<div [ngaTranslatePrefix]="prefix()">
     {{ { en: 'default [{ p1 }]', fa: 'دیفالت [{ p1 }]' } | ngaTranslate: { p1: 'value' } }}
@@ -78,9 +78,9 @@ describe('TranslatePipe', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [
-        TranslateModule.forRoot({
-          loader: { provide: TranslateLoader, useValue: loader },
+      providers: [
+        provideTranslateService({
+          loader: provideTranslateLoader(() => loader),
         }),
       ],
     });

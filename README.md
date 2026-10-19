@@ -14,8 +14,8 @@ It is a wrapper for the popular **ngx-translate** library and adds useful featur
 
 ## Compatibility
 
-- Angular: 17–20
-- ngx-translate: 17.x
+- Angular: >=18.0.0 <23.0.0
+- ngx-translate: >=17.0.0 <19.0.0
 
 ---
 

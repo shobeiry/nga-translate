@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Injectable, OnDestroy, Optional, Pipe, PipeTransform } from '@angular/core';
+import { ChangeDetectorRef, inject, Injectable, OnDestroy, Pipe, PipeTransform } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { InterpolationParameters, TranslateParser, TranslateService, TranslationChangeEvent } from '@ngx-translate/core';
 import { equals, getDefault, isDefined, normalizeJson } from './util';
@@ -8,12 +8,11 @@ import { DefaultObject, DefaultValue, Params } from './translate.types';
 
 @Injectable({ providedIn: 'root' })
 @Pipe({
-  standalone: true,
   name: 'ngaTranslate',
   pure: false, // required to update the value when the promise is resolved
 })
 export class TranslatePipe implements PipeTransform, OnDestroy {
-  value: string = '';
+  value = '';
   lastKey: string | DefaultObject | null = null;
   lastParams?: InterpolationParameters | string;
   lastDefaults?: DefaultValue;
@@ -23,12 +22,10 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
   onDefaultLangChange: Subscription | undefined;
   onPrefixChange: Subscription | undefined;
 
-  constructor(
-    private translate: TranslateService,
-    private parser: TranslateParser,
-    private _ref: ChangeDetectorRef,
-    @Optional() private translatePrefixDirective?: TranslatePrefixDirective,
-  ) {}
+  private translate = inject(TranslateService);
+  private parser = inject(TranslateParser);
+  private _ref = inject(ChangeDetectorRef, { optional: true });
+  private translatePrefixDirective = inject(TranslatePrefixDirective, { optional: true });
 
   updateValue(key: string | DefaultObject, defaults?: DefaultValue, interpolateParams?: InterpolationParameters): void {
     const translateKey = typeof key === 'string' ? getTranslateKey(key, this.translatePrefixDirective?.ngaTranslatePrefix()) : '';
@@ -42,8 +39,8 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
         this.value = value;
       }
 
-      this.lastKey = key as string;
-      this._ref.markForCheck();
+      this.lastKey = key;
+      this._ref?.markForCheck();
     };
 
     if (typeof key === 'string') {
@@ -54,9 +51,9 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     }
   }
 
-  transform(query: string, defaults?: DefaultValue, params?: Params): any;
-  transform(defaults: DefaultObject, params?: Params): any;
-  transform(query: string | DefaultObject, defaults?: DefaultValue, params?: Params): any {
+  transform(query: string, defaults?: DefaultValue, params?: Params): string;
+  transform(defaults: DefaultObject, params?: Params): string;
+  transform(query: string | DefaultObject, defaults?: DefaultValue, params?: Params): string {
     if (typeof query === 'string' && !query.length) {
       return query;
     }
@@ -78,7 +75,7 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
         // which is why we might need to change it to real JSON objects such as {"n":1} or {"n":"v"}
         try {
           interpolateParams = JSON.parse(normalizeJson(params));
-        } catch (e) {
+        } catch {
           throw new SyntaxError(`Wrong parameter in TranslatePipe. Expected a valid object, received: ${params}`);
         }
       } else if (typeof params === 'object' && !Array.isArray(params)) {
@@ -102,43 +99,35 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
     this._dispose();
 
     // subscribe to onTranslationChange event, in case the translations change
-    if (!this.onTranslationChange) {
-      this.onTranslationChange = this.translate.onTranslationChange.subscribe((event: TranslationChangeEvent) => {
-        if (this.lastKey && event.lang === this.translate.getCurrentLang()) {
-          this.lastKey = null;
-          this.updateValue(query, defaults, interpolateParams);
-        }
-      });
-    }
+    this.onTranslationChange ??= this.translate.onTranslationChange.subscribe((event: TranslationChangeEvent) => {
+      if (this.lastKey && event.lang === this.translate.getCurrentLang()) {
+        this.lastKey = null;
+        this.updateValue(query, defaults, interpolateParams);
+      }
+    });
 
-    if (!this.onLangChange) {
-      this.onLangChange = this.translate.onLangChange.subscribe(() => {
-        if (this.lastKey) {
-          this.lastKey = null;
-          this.updateValue(query, defaults, interpolateParams);
-        }
-      });
-    }
+    this.onLangChange ??= this.translate.onLangChange.subscribe(() => {
+      if (this.lastKey) {
+        this.lastKey = null;
+        this.updateValue(query, defaults, interpolateParams);
+      }
+    });
 
     // subscribe to onDefaultLangChange event, in case the default language changes
-    if (!this.onDefaultLangChange) {
-      this.onDefaultLangChange = this.translate.onFallbackLangChange.subscribe(() => {
-        if (this.lastKey) {
-          this.lastKey = null; // we want to make sure it doesn't return the same value until it's been updated
-          this.updateValue(query, defaults, interpolateParams);
-        }
-      });
-    }
+    this.onDefaultLangChange ??= this.translate.onFallbackLangChange.subscribe(() => {
+      if (this.lastKey) {
+        this.lastKey = null; // we want to make sure it doesn't return the same value until it's been updated
+        this.updateValue(query, defaults, interpolateParams);
+      }
+    });
 
     // subscribe to onPrefixChange event, in case the default language changes
-    if (!this.onPrefixChange) {
-      this.onPrefixChange = this.translatePrefixDirective?.onPrefixChange.subscribe(() => {
-        if (this.lastKey) {
-          this.lastKey = null;
-          this.updateValue(query, defaults, interpolateParams);
-        }
-      });
-    }
+    this.onPrefixChange ??= this.translatePrefixDirective?.onPrefixChange.subscribe(() => {
+      if (this.lastKey) {
+        this.lastKey = null;
+        this.updateValue(query, defaults, interpolateParams);
+      }
+    });
 
     return this.value;
   }
@@ -148,7 +137,7 @@ export class TranslatePipe implements PipeTransform, OnDestroy {
   }
 
   private applyDefault(defaults: DefaultValue | undefined, interpolateParams: InterpolationParameters | undefined, value: string): void {
-    this.value = getDefault(this.parser, this.translate.getCurrentLang(), defaults, interpolateParams, value);
+    this.value = getDefault(this.parser, this.translate.getCurrentLang() ?? 'en', defaults, interpolateParams, value);
   }
 
   /**

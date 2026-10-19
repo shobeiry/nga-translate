@@ -11,7 +11,6 @@ import { DefaultValue } from './translate.types';
  * A wrapper directive on top of the translation pipe as the inbuilt translation directive from ngx-translate is too verbose and buggy
  */
 @Directive({
-  standalone: true,
   selector: '[ngaTranslate]',
 })
 export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
@@ -48,9 +47,7 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
   }
 
   private getTranslation(): void {
-    if (!this.defaults) {
-      this.defaults = this.el.nativeElement.innerHTML;
-    }
+    this.defaults ??= this.el.nativeElement.innerHTML;
     const key = this.ngaTranslate();
     if (!key) {
       this.applyDefault('');
@@ -77,7 +74,7 @@ export class TranslateDirective implements OnChanges, OnInit, OnDestroy {
   private applyDefault(value: string): void {
     this.el.nativeElement.innerHTML = getDefault(
       this.translateParser,
-      this.translateService.getCurrentLang(),
+      this.translateService.getCurrentLang() ?? 'en',
       this.defaults ?? undefined,
       this.translateValues(),
       value,

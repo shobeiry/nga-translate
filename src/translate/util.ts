@@ -1,4 +1,3 @@
-/* tslint:disable */
 import { InterpolationParameters, TranslateParser } from '@ngx-translate/core';
 import { DefaultObject, DefaultValue } from './translate.types';
 
@@ -15,6 +14,7 @@ import { DefaultObject, DefaultValue } from './translate.types';
  * @param o2 Object or value to compare.
  * @returns true if arguments are equal.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function equals(o1: any, o2: any): boolean {
   if (o1 === o2) {
     return true;
@@ -62,26 +62,25 @@ export function equals(o1: any, o2: any): boolean {
   }
   return false;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
-/* tslint:enable */
-
-export function isDefined(value: any): boolean {
+export function isDefined(value: unknown): boolean {
   return typeof value !== 'undefined' && value !== null;
 }
 
-export function isObject(item: any): item is Record<any, any> {
+export function isObject(item: unknown): item is Record<string, unknown> {
   return !!item && typeof item === 'object' && !Array.isArray(item);
 }
 
-export function mergeDeep(target: any, source: any): any {
+export function mergeDeep(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
   const output = Object.assign({}, target);
   if (isObject(target) && isObject(source)) {
-    Object.keys(source).forEach((key: any) => {
+    Object.keys(source).forEach((key: string) => {
       if (isObject(source[key])) {
         if (!(key in target)) {
           Object.assign(output, { [key]: source[key] });
         } else {
-          output[key] = mergeDeep(target[key], source[key]);
+          output[key] = mergeDeep(target[key] as Record<string, unknown>, source[key]);
         }
       } else {
         Object.assign(output, { [key]: source[key] });
